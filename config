@@ -1,0 +1,119 @@
+[opticalflow]
+##### main setting
+#algorithms: 'gma','gma_4k','gma_resize'(1/2),'gma_resize_quad'(1/4),'gma_resize_oct'(1/8),'farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof'
+algorithm = simpleflow
+
+#gma weight file: gma-chairs.pth,gma-kitti.pth,gma-sintel.pth,gma-things.pth
+gma_weight_file = gma-sintel.pth
+
+# Use specified GPU, sample : 0,1,3
+gpu = 0,1
+# mul-thread backend (nccl or gloo)
+mt_backend = gloo
+
+#data root
+root = /Users/qhong/Desktop/inpu
+# root = /Users/qhong/Documents/data/lrtest
+
+#data output
+output = /Users/qhong/Desktop/testoutput
+
+#the name of image file
+image_file = video
+
+# the name of right eye image file
+right_eye_file = image
+
+#enable depth calculator
+cal_depth = 0
+
+#merge depth and mv file (need calculate depth first)
+merge_depth = 0
+
+#select depth fusion mode: 
+#[None]: No fusion 
+#[Normal]: Can only be used when mask is enabled,The char's depth will be 0.5 and bg will be 1
+#[Inter]: Can only be used when cal_depth is enabled , the depth will calculated by left and right eye image
+fusion_mode = Inter
+
+
+#export 0.5 phase result
+export_half = 0
+
+
+##### file setting
+#rm original result, default is 1
+rm_ori_res = 1
+
+# savetype, default is exr
+savetype = exr
+
+
+
+
+##### parameter setting
+## refine the exr output , take average mv and init alpha output , default is 1
+refine = 1
+
+#depth depth_range value
+depth_range = 512
+
+#Select according to the mask's gray image, if mv_ref = 0 ,The area where the pixel area is zero is the IOU area, default is 1
+mv_ref = 1
+
+#maximum image loaded, 0 = all
+n_limit = 9
+
+
+
+
+##### mask setting
+#the name of front mask file
+front_mask_file = mask
+
+#the name of back mask file
+back_mask_file = BG
+
+# the name of right eye mask file
+right_eye_front_mask_file = Char
+
+# the name of right eye mask file
+right_eye_back_mask_file = BG
+
+#the multiplier of threshold, the tiff image should be 65535/255 = 257, default is 1
+threshold_multiplier = 1
+
+# enable front mask or back mask
+char = 1
+bg= 0
+
+#if restrain =1 , The result will be limited to the mask range
+restrain = 1
+
+#the threshold of mask file (between 0 to 255, lower than this value be pruned), default is 60
+threshold = 60
+
+#Limit results to mask
+enable_limited = 0
+
+
+
+
+##### end point error (evaluation)
+#enablle epe
+evaluate_epe = 0
+#the name of ground_truth file
+ground_truth_file = mv1
+
+
+
+
+#### do not edit
+#use matting algorithm : rvm
+matting = 1
+#dump the result of depth
+enable_dump = 0
+#load the depth dumpe file
+load_dump = 0
+#record the time cost
+time_cost = 1
