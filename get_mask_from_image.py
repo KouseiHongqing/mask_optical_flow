@@ -2,14 +2,14 @@
 Author: Qing Hong
 Date: 2022-06-06 13:50:08
 LastEditors: QingHong
-LastEditTime: 2022-06-06 13:59:30
+LastEditTime: 2022-06-06 16:02:43
 Description: file content
 '''
 import os,sys
 import imageio
 from tqdm import tqdm
 from myutil import *
-inp = '/Users/qhong/Desktop/inpu/scene01/mv0'
+inp = '/Users/qhong/Desktop/inpu/scene01/mv1data'
 output = '/Users/qhong/Desktop/inpu/scene01/mask'
 mkdir(output)
 mvs = sorted(list(filter(lambda x:x[0]!='.',os.listdir(inp))))

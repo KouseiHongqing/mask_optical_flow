@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-06-06 14:48:49
+LastEditTime: 2022-06-06 17:27:04
 Description: file content
 '''
 import warnings
@@ -199,6 +199,9 @@ args.n_limit = config.getint('opticalflow','n_limit')
 args.gpu = config.get('opticalflow','gpu')
 args.enable_limited = config.getboolean('opticalflow','enable_limited')
 args.time_cost = config.getboolean('opticalflow','time_cost')
+args.dump_masked_file = config.getboolean('opticalflow','dump_masked_file')
+args.cf_use_full = config.getboolean('opticalflow','cf_use_full')
+
 #refine threshold
 args.threshold = config.getint('opticalflow','threshold') * config.getint('opticalflow','threshold_multiplier')
 ##跳过mv计算 测试代码不要修改 test parameter, donot edit
@@ -262,12 +265,20 @@ if args.cur_rank == 1:
 # 计算前景mv结果
 if args.char:
     if args.cur_rank == 1:print('front mv0:')
-    mv0_front_result = optical_flow(args,image,'{}_char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
-    if args.cal_depth: mv0_front_result_right = optical_flow(args,right_eye_image,'{}_right_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+    if args.cf_use_full:
+        mv0_front_result = optical_flow_qcom(args,image,'{}_Char_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+        if args.cal_depth: mv0_front_result_right = optical_flow_qcom(args,right_eye_image,'{}_right_Char_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+    else:
+        mv0_front_result = optical_flow(args,image,'{}_char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+        if args.cal_depth: mv0_front_result_right = optical_flow(args,right_eye_image,'{}_right_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
 
     if args.cur_rank == 1:print('front mv1:')
-    mv1_front_result = optical_flow(args,image,'{}_char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
-    if args.cal_depth:mv1_front_result_right = optical_flow(args,right_eye_image,'{}_right_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+    if args.cf_use_full:
+        mv1_front_result = optical_flow_qcom(args,image,'{}_Char_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+        if args.cal_depth:mv1_front_result_right = optical_flow_qcom(args,right_eye_image,'{}_right_Char_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+    else:
+        mv1_front_result = optical_flow(args,image,'{}_char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+        if args.cal_depth:mv1_front_result_right = optical_flow(args,right_eye_image,'{}_right_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
 # 计算背景mv结果
 if args.bg:
     if args.cur_rank == 1:print('back mv0:')

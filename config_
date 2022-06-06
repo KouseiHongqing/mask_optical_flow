@@ -84,11 +84,11 @@ right_eye_back_mask_file = BG
 threshold_multiplier = 1
 
 # enable front mask or back mask
-char = 1
+char = 0
 bg= 0
 
 #if restrain =1 , The result will be limited to the mask range
-restrain = 1
+restrain = 0
 
 #the threshold of mask file (between 0 to 255, lower than this value be pruned), default is 60
 threshold = 60
