@@ -2,7 +2,7 @@
 ##### main setting
 #algorithms: 'gma','gma_4k','gma_resize'(1/2),'gma_resize_quad'(1/4),'gma_resize_oct'(1/8),
 # 'farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof'
-algorithm = gma
+algorithm = farneback
 
 #gma weight file: gma-chairs.pth,gma-kitti.pth,gma-sintel.pth,gma-things.pth
 gma_weight_file = gma-sintel.pth
@@ -97,7 +97,7 @@ threshold = 60
 enable_limited = 0
 
 #CF use full image, default = 0
-cf_use_full = 1
+cf_use_full = 0
 
 
 

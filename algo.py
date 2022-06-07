@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-06-06 17:02:56
+LastEditTime: 2022-06-07 10:46:38
 Description: file content
 '''
 
@@ -289,7 +289,7 @@ def optical_flow(args,images,append,front_mask_dict,back_mask_dict,zero_one,usin
                 if not pass_mv:
                     start_time = datetime.datetime.now()
                     opt = optical_flow_algo(pre,cur,algorithm,DEVICE,model)
-                    cost_time += (datetime.datetime.now()-start_time).microseconds
+                    cost_time += (datetime.datetime.now()-start_time).total_seconds()
                     if args.restrain:opt = restrain(opt,mask,threshold,mv_ref)
                     save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=True)
             else:
@@ -299,12 +299,12 @@ def optical_flow(args,images,append,front_mask_dict,back_mask_dict,zero_one,usin
                 if not pass_mv:
                     start_time = datetime.datetime.now()
                     opt = optical_flow_algo(cur,pre,algorithm,DEVICE,model)
-                    cost_time += (datetime.datetime.now()-start_time).microseconds
+                    cost_time += (datetime.datetime.now()-start_time).total_seconds()
                     if args.restrain:opt = restrain(opt,mask,threshold,mv_ref)
                     save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=False)
             pre = cur
         if args.time_cost and args.use_tqdm:
-            print('cost times:{:.1f}s'.format(cost_time/100000))
+            print('cost times:{:.2f}s, speed: {:.2f}'.format(cost_time,len(seq_images)/cost_time))
         res[seq] = tmp
     return res
 
@@ -429,7 +429,7 @@ def optical_flow_qcom(args,images,append,front_mask_dict,back_mask_dict,zero_one
                 if not pass_mv:
                     start_time = datetime.datetime.now()
                     opt = optical_flow_algo(pre,cur_full,algorithm,DEVICE,model)
-                    cost_time += (datetime.datetime.now()-start_time).microseconds
+                    cost_time += (datetime.datetime.now()-start_time).total_seconds()
                     if args.restrain:opt = restrain(opt,mask,threshold,mv_ref)
                     save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=True)
             else:
@@ -439,16 +439,102 @@ def optical_flow_qcom(args,images,append,front_mask_dict,back_mask_dict,zero_one
                 if not pass_mv:
                     start_time = datetime.datetime.now()
                     opt = optical_flow_algo(cur,pre_full,algorithm,DEVICE,model)
-                    cost_time += (datetime.datetime.now()-start_time).microseconds
+                    cost_time += (datetime.datetime.now()-start_time).total_seconds()
                     if args.restrain:opt = restrain(opt,mask,threshold,mv_ref)
                     save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=False)
             pre = cur
             pre_full = cur_full
         if args.time_cost and args.use_tqdm:
-            print('cost times:{:.1f}s'.format(cost_time/100000))
+            print('cost times:{:.2f}s, speed: {:.2f}'.format(cost_time,len(seq_images)/cost_time))
         res[seq] = tmp
     return res
 
+'''
+description: 光流计算代码 mask版 pre为mask过滤后的图片,cur为mask过滤后的图片
+param {*} args
+param {*} images 输入图片dict
+param {*} append 保存名
+param {*} front_mask_dict 前景mask的dict
+param {*} back_mask_dict 背景mask的dict
+param {*} zero_one 是否为01相位
+param {*} using_mask 使用哪种mask
+return {*} 光流结果地址dict
+'''
+def optical_flow_mask(args,images,append,front_mask_dict,back_mask_dict,zero_one,using_mask):
+    output = args.output
+    threshold = args.threshold
+    two_mask= args.char and args.bg
+    mv_ref= args.mv_ref
+    refine = args.refine
+    savetype= args.savetype
+    algorithm= args.algorithm
+    DEVICE = args.DEVICE
+    pass_mv= args.pass_mv
+    use_tqdm= args.use_tqdm
+    assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm, 'not supported algorithm: %s' %algorithm
+    res = defaultdict(list)
+    model = None if 'gma' not in algorithm else get_model(DEVICE=DEVICE,args=args)
+    for seq,seq_images in images.items():
+        tmp = []
+        total_range = range(len(seq_images)) if not use_tqdm else tqdm(range(len(seq_images)), desc='current sequence:{}'.format(seq))
+        cost_time = 0
+        for i in total_range:
+            if using_mask == 'front':
+                cur = mask_read(seq_images[i],front_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
+                if i>0:
+                    mask = front_mask_dict[seq][i-1]
+            elif using_mask == 'bg':
+                if two_mask:
+                    cur = mask_read(seq_images[i],back_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
+                    mask = back_mask_dict[seq][i]
+                else:
+                    cur = mask_read(seq_images[i],front_mask_dict[seq][i],threshold=threshold,reverse=True,mv_ref=mv_ref)                    
+                    mask = front_mask_dict[seq][i]
+                   ##bug here
+            else:
+                cur = cv2.imread(seq_images[i]) if not pass_mv else None 
+                mask = None
+            if  not os.path.exists(output+'/'+seq+'/'+append):
+                os.makedirs(output+'/'+seq+'/'+append)
+            name =getname(seq_images[i])
+            if args.dump_masked_file and zero_one:
+                    if args.cur_rank == 1: mkdir(output + '/' + seq+ '/dumpedfile_'+using_mask+'_')
+                    dump_char_file = output + '/' + seq+ '/dumpedfile_'+using_mask+'/dump_{:0>8}.png'.format(int(re.findall(r'\d+', name)[-1]))
+                    cv2.imwrite(dump_char_file,cur)
+            if i == 0 :
+                pre = cur
+                continue
+            fm = None
+            bm = None
+            if not using_mask=='None':
+                fm = front_mask_dict[seq][i-1] if zero_one else front_mask_dict[seq][i]
+                if two_mask:
+                    bm = back_mask_dict[seq][i-1] if zero_one else back_mask_dict[seq][i]
+            if zero_one:
+                tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(int(re.findall(r'\d+', name)[-1])-1,8)+ '.' +savetype
+                # tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(i-1)+ '.' +savetype
+                tmp.append(tmp_file)
+                if not pass_mv:
+                    start_time = datetime.datetime.now()
+                    opt = optical_flow_algo(pre,cur,algorithm,DEVICE,model)
+                    cost_time += (datetime.datetime.now()-start_time).total_seconds()
+                    if args.restrain:opt = restrain(opt,mask,threshold,mv_ref)
+                    save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=True)
+            else:
+                tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(int(re.findall(r'\d+', name)[-1]),8)+'.' +savetype
+                # tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(i)+ '.' +savetype
+                tmp.append(tmp_file)
+                if not pass_mv:
+                    start_time = datetime.datetime.now()
+                    opt = optical_flow_algo(cur,pre,algorithm,DEVICE,model)
+                    cost_time += (datetime.datetime.now()-start_time).total_seconds()
+                    if args.restrain:opt = restrain(opt,mask,threshold,mv_ref)
+                    save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=False)
+            pre = cur
+        if args.time_cost and args.use_tqdm:
+            print('cost times:{:.2f}s, speed: {:.2f}'.format(cost_time,len(seq_images)/cost_time))
+        res[seq] = tmp
+    return res
 
 '''
 description: 光流核心计算

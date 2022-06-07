@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-06-06 17:27:04
+LastEditTime: 2022-06-07 10:01:09
 Description: file content
 '''
 import warnings
@@ -269,16 +269,16 @@ if args.char:
         mv0_front_result = optical_flow_qcom(args,image,'{}_Char_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
         if args.cal_depth: mv0_front_result_right = optical_flow_qcom(args,right_eye_image,'{}_right_Char_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
     else:
-        mv0_front_result = optical_flow(args,image,'{}_char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
-        if args.cal_depth: mv0_front_result_right = optical_flow(args,right_eye_image,'{}_right_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+        mv0_front_result = optical_flow_mask(args,image,'{}_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+        if args.cal_depth: mv0_front_result_right = optical_flow_mask(args,right_eye_image,'{}_right_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
 
     if args.cur_rank == 1:print('front mv1:')
     if args.cf_use_full:
         mv1_front_result = optical_flow_qcom(args,image,'{}_Char_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
         if args.cal_depth:mv1_front_result_right = optical_flow_qcom(args,right_eye_image,'{}_right_Char_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
     else:
-        mv1_front_result = optical_flow(args,image,'{}_char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
-        if args.cal_depth:mv1_front_result_right = optical_flow(args,right_eye_image,'{}_right_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+        mv1_front_result = optical_flow_mask(args,image,'{}_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+        if args.cal_depth:mv1_front_result_right = optical_flow_mask(args,right_eye_image,'{}_right_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
 # 计算背景mv结果
 if args.bg:
     if args.cur_rank == 1:print('back mv0:')
