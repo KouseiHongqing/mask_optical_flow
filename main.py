@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-06-07 10:01:09
+LastEditTime: 2022-06-20 15:10:19
 Description: file content
 '''
 import warnings
@@ -201,6 +201,7 @@ args.enable_limited = config.getboolean('opticalflow','enable_limited')
 args.time_cost = config.getboolean('opticalflow','time_cost')
 args.dump_masked_file = config.getboolean('opticalflow','dump_masked_file')
 args.cf_use_full = config.getboolean('opticalflow','cf_use_full')
+args.use_bounding_box = config.getboolean('opticalflow','use_bounding_box')
 
 #refine threshold
 args.threshold = config.getint('opticalflow','threshold') * config.getint('opticalflow','threshold_multiplier')
@@ -208,7 +209,9 @@ args.threshold = config.getint('opticalflow','threshold') * config.getint('optic
 args.pass_mv = False
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 gpus = args.gpu.rstrip().split(',')
-#os.environ['IMAGEIO_USERDIR'] = '/tt/nas/DSP_workdir/qhong/optical-flow/libx/imageio/freeimage'
+IMAGEIO_USERDIR = config.get('opticalflow','IMAGEIO_USERDIR') 
+if IMAGEIO_USERDIR.lower()!='none':
+    os.environ['IMAGEIO_USERDIR'] = IMAGEIO_USERDIR
 DEVICE='cpu'
 args.cur_rank = 1
 
@@ -266,38 +269,51 @@ if args.cur_rank == 1:
 if args.char:
     if args.cur_rank == 1:print('front mv0:')
     if args.cf_use_full:
-        mv0_front_result = optical_flow_qcom(args,image,'{}_Char_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
-        if args.cal_depth: mv0_front_result_right = optical_flow_qcom(args,right_eye_image,'{}_right_Char_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+        mv0_front_result,mv0_front_result_cost = optical_flow_qcom(args,image,'{}_Char_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+        if args.cal_depth: mv0_front_result_right,mv0_front_result_right_cost = optical_flow_qcom(args,right_eye_image,'{}_right_Char_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
     else:
-        mv0_front_result = optical_flow_mask(args,image,'{}_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
-        if args.cal_depth: mv0_front_result_right = optical_flow_mask(args,right_eye_image,'{}_right_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+        mv0_front_result,mv0_front_result_cost = optical_flow_mask(args,image,'{}_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
+        if args.cal_depth: mv0_front_result_right,mv0_front_result_right_cost = optical_flow_mask(args,right_eye_image,'{}_right_Char_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='front')
 
     if args.cur_rank == 1:print('front mv1:')
     if args.cf_use_full:
-        mv1_front_result = optical_flow_qcom(args,image,'{}_Char_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
-        if args.cal_depth:mv1_front_result_right = optical_flow_qcom(args,right_eye_image,'{}_right_Char_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+        mv1_front_result,mv1_front_result_cost = optical_flow_qcom(args,image,'{}_Char_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+        if args.cal_depth:mv1_front_result_right,mv1_front_result_right_cost = optical_flow_qcom(args,right_eye_image,'{}_right_Char_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
     else:
-        mv1_front_result = optical_flow_mask(args,image,'{}_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
-        if args.cal_depth:mv1_front_result_right = optical_flow_mask(args,right_eye_image,'{}_right_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+        mv1_front_result,mv1_front_result_cost = optical_flow_mask(args,image,'{}_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
+        if args.cal_depth:mv1_front_result_right,mv1_front_result_right_cost = optical_flow_mask(args,right_eye_image,'{}_right_Char_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='front')
 # 计算背景mv结果
 if args.bg:
     if args.cur_rank == 1:print('back mv0:')
-    mv0_back_result = optical_flow(args,image,'{}_bg_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='bg')
-    if args.cal_depth:mv0_back_result = optical_flow(args,right_eye_image,'{}_right_bg_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='bg')
+    # mv0_back_result = optical_flow(args,image,'{}_bg_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='bg')
+    # if args.cal_depth:mv0_back_result = optical_flow(args,right_eye_image,'{}_right_bg_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='bg')
+    if args.cf_use_full:
+        mv0_back_result,mv0_back_result_cost = optical_flow_qcom(args,image,'{}_bg_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='bg')
+        if args.cal_depth: mv0_back_result_right,mv0_back_result_right_cost = optical_flow_qcom(args,right_eye_image,'{}_right_bg_CFFULL_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='bg')
+    else:
+        mv0_back_result,mv0_back_result_cost = optical_flow_mask(args,image,'{}_bg_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='bg')
+        if args.cal_depth: mv0_back_result_right,mv0_back_result_right_cost = optical_flow_mask(args,right_eye_image,'{}_right_bg_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='bg')
 
     if args.cur_rank == 1:print('back mv1:')
-    mv1_back_result = optical_flow(args,image,'{}_bg_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='bg')
-    if args.cal_depth:mv1_back_result_right = optical_flow(args,right_eye_image,'{}_right_bg_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='bg')
+    # mv1_back_result = optical_flow(args,image,'{}_bg_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='bg')
+    # if args.cal_depth:mv1_back_result_right = optical_flow(args,right_eye_image,'{}_right_bg_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='bg')
+
+    if args.cf_use_full:
+        mv1_back_result,mv1_back_result_cost = optical_flow_qcom(args,image,'{}_bg_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='bg')
+        if args.cal_depth:mv1_back_result_right,mv1_back_result_right_cost = optical_flow_qcom(args,right_eye_image,'{}_right_bg_CFFULL_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='bg')
+    else:
+        mv1_back_result,mv1_back_result_cost = optical_flow_mask(args,image,'{}_bg_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='bg')
+        if args.cal_depth:mv1_back_result_right,mv1_back_result_right_cost = optical_flow_mask(args,right_eye_image,'{}_right_bg_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='bg')
 # 计算原始mv结果
 if not (args.char or args.bg):
     if args.cur_rank == 1:
         print('original mv0')
-    mv0_origin_result = optical_flow(args,image,'{}_left_original_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='None')
-    if args.merge_depth:mv0_origin_result_right = optical_flow(args,right_eye_image,'{}_right_original_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='None')
+    mv0_origin_result,mv0_origin_result_cost = optical_flow(args,image,'{}_left_original_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='None')
+    if args.merge_depth:mv0_origin_result_right,mv0_origin_result_right_cost = optical_flow(args,right_eye_image,'{}_right_original_mv0'.format(args.algorithm),front_mask,bg_mask,zero_one=True,using_mask='None')
     if args.cur_rank == 1:
         print('original mv1')
-    mv1_origin_result = optical_flow(args,image,'{}_left_original_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='None')
-    if args.merge_depth:mv1_origin_result_right = optical_flow(args,right_eye_image,'{}_right_original_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='None')
+    mv1_origin_result,mv1_origin_result_cost = optical_flow(args,image,'{}_left_original_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='None')
+    if args.merge_depth:mv1_origin_result_right,mv1_origin_result_right_cost = optical_flow(args,right_eye_image,'{}_right_original_mv1'.format(args.algorithm),front_mask,bg_mask,zero_one=False,using_mask='None')
 # 计算深度
 if args.cal_depth: 
     if args.cur_rank == 1:
@@ -357,6 +373,20 @@ if args.merge_depth:
 #                 shutil.rmtree(os.path.join(pat,frag),ignore_errors=True)
 
 print('======================================== worker {} is finished! ======================================= totalworker={}'.format(args.cur_rank,int(os.environ['WORLD_SIZE'])))
+if args.cur_rank == 1 and args.time_cost:
+    c_t,speed = [],[]
+    myiter = None
+    if args.char:
+        myiter = mv0_front_result_cost.items()
+    else:
+        myiter = mv0_origin_result_cost.items()
+    for key,value in myiter:
+        c_t.append(value[0])
+        speed.append(value[1])
+    print(args.algorithm)
+    print('cost time = {}'.format(c_t))
+    print('speed = {}'.format(speed))
+
 #     mv1_front_result = merge_depth(mv1_front_result,depth_mv_mask)
 #     mv1_back_result = merge_depth(mv1_back_result,depth_mv_mask)
 #     mv0_front_result = merge_depth(mv0_front_result,depth_mv_mask)

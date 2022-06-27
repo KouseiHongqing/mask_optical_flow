@@ -7,13 +7,14 @@ algorithm = farneback
 #gma weight file: gma-chairs.pth,gma-kitti.pth,gma-sintel.pth,gma-things.pth
 gma_weight_file = gma-sintel.pth
 
-# Use specified GPU, sample : 0,1,3
+# Use specified GPU, example : 0,1,3
 gpu = 0
-# mul-thread backend (nccl or gloo)
-mt_backend = gloo
+
+# mul-thread backend (nccl or gloo,nvidia GPU please use nccl)
+mt_backend = nccl
 
 #data root
-root = /Users/qhong/Desktop/inpu
+root = /Users/qhong/Desktop/opt_test_datasets/optical_test_pattern
 # root = /Users/qhong/Documents/data/lrtest
 
 #data output
@@ -26,10 +27,13 @@ image_file = video
 right_eye_file = image
 
 #enable depth calculator
-cal_depth = 0
+cal_depth = 1
 
 #merge depth and mv file (need calculate depth first)
-merge_depth = 0
+merge_depth = 1
+
+#IMAGEIO_USERDIR (if have)
+IMAGEIO_USERDIR = None
 
 #select depth fusion mode: 
 #[None]: No fusion 
@@ -84,11 +88,11 @@ right_eye_back_mask_file = BG
 threshold_multiplier = 1
 
 # enable front mask or back mask
-char = 1
+char = 0
 bg= 0
 
 #if restrain =1 , The result will be limited to the mask range
-restrain = 1
+restrain = 0
 
 #the threshold of mask file (between 0 to 255, lower than this value be pruned), default is 60
 threshold = 60
@@ -99,7 +103,8 @@ enable_limited = 0
 #CF use full image, default = 0
 cf_use_full = 0
 
-
+#use bounding box to cover mask area, only support for traditional optical flow
+use_bounding_box = 0
 
 
 ##### end point error (evaluation)
@@ -113,7 +118,7 @@ ground_truth_file = mv1
 
 #### do not edit
 #use matting algorithm : rvm
-matting = 1
+matting = 0
 #dump the result of depth
 enable_dump = 0
 #load the depth dumpe file

@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-06-07 10:46:38
+LastEditTime: 2022-06-20 14:14:46
 Description: file content
 '''
 
@@ -196,6 +196,8 @@ param {*} reverse 转置mask
 return {*} 约束后的光流
 '''
 def restrain(flow,mask_,threshold,mv_ref,reverse=False):
+    if not mask_:
+        return flow
     mask = imageio.imread(mask_)[...,0]
     if mask.max()<=1 and mask.min()>=-1:
         threshold = 1
@@ -205,8 +207,8 @@ def restrain(flow,mask_,threshold,mv_ref,reverse=False):
         flow[np.where(mask<threshold)] = 0
     else:
         flow[np.where(mask>=threshold)] = 0
-    flow[np.where(mask<1)] =0
     return flow
+
 
 '''
 description: 加载图片并且过滤掉mask部分
@@ -245,6 +247,7 @@ def optical_flow(args,images,append,front_mask_dict,back_mask_dict,zero_one,usin
     use_tqdm= args.use_tqdm
     assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm, 'not supported algorithm: %s' %algorithm
     res = defaultdict(list)
+    cost_res = defaultdict(list)
     model = None if 'gma' not in algorithm else get_model(DEVICE=DEVICE,args=args)
     for seq,seq_images in images.items():
         tmp = []
@@ -266,8 +269,7 @@ def optical_flow(args,images,append,front_mask_dict,back_mask_dict,zero_one,usin
             else:
                 cur = cv2.imread(seq_images[i]) if not pass_mv else None 
                 mask = None
-            if  not os.path.exists(output+'/'+seq+'/'+append):
-                os.makedirs(output+'/'+seq+'/'+append)
+            mkdir(output+'/'+seq+'/'+append)
             name =getname(seq_images[i])
             if args.dump_masked_file and zero_one:
                     if args.cur_rank == 1: mkdir(output + '/' + seq+ '/dumpedfile_'+using_mask)
@@ -305,60 +307,11 @@ def optical_flow(args,images,append,front_mask_dict,back_mask_dict,zero_one,usin
             pre = cur
         if args.time_cost and args.use_tqdm:
             print('cost times:{:.2f}s, speed: {:.2f}'.format(cost_time,len(seq_images)/cost_time))
+        cost_res[seq] = [round(cost_time,2),round(len(seq_images)/cost_time,2)]
         res[seq] = tmp
-    return res
+    return res,cost_res
 
 
-def optical_flow_mask(images,output,append,front_mask_dict,back_mask_dict,threshold=40,two_mask = False,mv_ref=False,refine=False,savetype='exr',algorithm  = 'farneback',zero_one = True,using_mask = 'front',DEVICE='cpu',args=None,pass_mv=False,use_tqdm=False):
-    assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm, 'not supported algorithm: %s' %algorithm
-    res = defaultdict(list)
-    def getname(image):
-        tmp = image.split('/')[-1]
-        tmp = tmp[:-1-tmp[::-1].find('.')]
-        tmp = tmp[-tmp[::-1].find('.'):]
-        return tmp
-    model = None if 'gma' not in algorithm else get_model(DEVICE=DEVICE,args=args)
-    for seq,seq_images in images.items():
-        tmp = []
-        total_range = range(len(seq_images)) if not use_tqdm else tqdm(range(len(seq_images)), desc='current sequence:{}'.format(seq))
-        for i in total_range:
-            cur = mask_read(seq_images[i],front_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
-            cur_full = cv2.imread(seq_images[i])
-            if i>0:
-                mask = front_mask_dict[seq][i-1]
-            if  not os.path.exists(output+'/'+seq+'/'+append):
-                os.makedirs(output+'/'+seq+'/'+append)
-            name =getname(seq_images[i])
-            if i == 0 :
-                pre = cur
-                pre_full = cur_full
-                continue
-            fm = None
-            bm = None
-            # if not using_mask=='None':
-            #     fm = front_mask_dict[seq][i-1] if zero_one else front_mask_dict[seq][i]
-            #     if two_mask:
-            #         bm = back_mask_dict[seq][i-1] if zero_one else back_mask_dict[seq][i]
-            if zero_one:
-                tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(int(re.findall(r'\d+', name)[-1])-1,8)+ '.' +savetype
-                # tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(i-1)+ '.' +savetype
-                tmp.append(tmp_file)
-                if not pass_mv:
-                    opt = optical_flow_algo(pre,cur_full,algorithm,DEVICE,model)
-                    if mask:opt = restrain(opt,mask,threshold,mv_ref)
-                    save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=True)
-            else:
-                tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(int(re.findall(r'\d+', name)[-1]),8)+'.' +savetype
-                # tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(i)+ '.' +savetype
-                tmp.append(tmp_file)
-                if not pass_mv:
-                    opt = optical_flow_algo(cur,pre_full,algorithm,DEVICE,model)
-                    if mask:opt = restrain(opt,mask,threshold,mv_ref)
-                    save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=False)
-            pre = cur
-            pre_full = cur_full
-        res[seq] = tmp
-    return res
 '''
 description: 光流计算代码 qcom版 pre为mask过滤后的图片,cur为全部图片
 param {*} args
@@ -383,6 +336,7 @@ def optical_flow_qcom(args,images,append,front_mask_dict,back_mask_dict,zero_one
     use_tqdm= args.use_tqdm
     assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm, 'not supported algorithm: %s' %algorithm
     res = defaultdict(list)
+    cost_res = defaultdict(list)
     model = None if 'gma' not in algorithm else get_model(DEVICE=DEVICE,args=args)
     for seq,seq_images in images.items():
         tmp = []
@@ -405,11 +359,10 @@ def optical_flow_qcom(args,images,append,front_mask_dict,back_mask_dict,zero_one
             else:
                 cur = cv2.imread(seq_images[i]) if not pass_mv else None 
                 mask = None
-            if  not os.path.exists(output+'/'+seq+'/'+append):
-                os.makedirs(output+'/'+seq+'/'+append)
+            mkdir(output+'/'+seq+'/'+append)
             name =getname(seq_images[i])
             if args.dump_masked_file and zero_one:
-                    if args.cur_rank == 1: mkdir(output + '/' + seq+ '/dumpedfile_'+using_mask+'_')
+                    if args.cur_rank == 1: mkdir(output + '/' + seq+ '/dumpedfile_'+using_mask)
                     dump_char_file = output + '/' + seq+ '/dumpedfile_'+using_mask+'/dump_{:0>8}.png'.format(int(re.findall(r'\d+', name)[-1]))
                     cv2.imwrite(dump_char_file,cur)
             if i == 0 :
@@ -446,8 +399,9 @@ def optical_flow_qcom(args,images,append,front_mask_dict,back_mask_dict,zero_one
             pre_full = cur_full
         if args.time_cost and args.use_tqdm:
             print('cost times:{:.2f}s, speed: {:.2f}'.format(cost_time,len(seq_images)/cost_time))
+        cost_res[seq] = [round(cost_time,2),round(len(seq_images)/cost_time,2)]
         res[seq] = tmp
-    return res
+    return res,cost_res
 
 '''
 description: 光流计算代码 mask版 pre为mask过滤后的图片,cur为mask过滤后的图片
@@ -471,8 +425,10 @@ def optical_flow_mask(args,images,append,front_mask_dict,back_mask_dict,zero_one
     DEVICE = args.DEVICE
     pass_mv= args.pass_mv
     use_tqdm= args.use_tqdm
+    use_bounding_box = args.use_bounding_box
     assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm, 'not supported algorithm: %s' %algorithm
     res = defaultdict(list)
+    cost_res = defaultdict(list)
     model = None if 'gma' not in algorithm else get_model(DEVICE=DEVICE,args=args)
     for seq,seq_images in images.items():
         tmp = []
@@ -481,8 +437,7 @@ def optical_flow_mask(args,images,append,front_mask_dict,back_mask_dict,zero_one
         for i in total_range:
             if using_mask == 'front':
                 cur = mask_read(seq_images[i],front_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
-                if i>0:
-                    mask = front_mask_dict[seq][i-1]
+                mask = front_mask_dict[seq][i]
             elif using_mask == 'bg':
                 if two_mask:
                     cur = mask_read(seq_images[i],back_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
@@ -494,16 +449,27 @@ def optical_flow_mask(args,images,append,front_mask_dict,back_mask_dict,zero_one
             else:
                 cur = cv2.imread(seq_images[i]) if not pass_mv else None 
                 mask = None
-            if  not os.path.exists(output+'/'+seq+'/'+append):
-                os.makedirs(output+'/'+seq+'/'+append)
+            mkdir(output+'/'+seq+'/'+append)
             name =getname(seq_images[i])
             if args.dump_masked_file and zero_one:
-                    if args.cur_rank == 1: mkdir(output + '/' + seq+ '/dumpedfile_'+using_mask+'_')
+                    if args.cur_rank == 1: mkdir(output + '/' + seq+ '/dumpedfile_'+using_mask)
                     dump_char_file = output + '/' + seq+ '/dumpedfile_'+using_mask+'/dump_{:0>8}.png'.format(int(re.findall(r'\d+', name)[-1]))
                     cv2.imwrite(dump_char_file,cur)
             if i == 0 :
+                pre_mask = mask
                 pre = cur
                 continue
+            ##bouding box 处理 
+            bouding_box_pos = None
+            mv_offset = [0,0]
+            if use_bounding_box:
+                x,y = pad_bounding_box(pre_mask,mask)
+                p1_lx,p1_ly,p1_rx,p1_ry = x
+                cf_lx,cf_ly,cf_rx,cf_ry = y
+                pre_bounding = pre[p1_ly:p1_ry,p1_lx:p1_rx]
+                cur_bounding = cur[cf_ly:cf_ry,cf_lx:cf_rx]
+                mv_offset = [cf_lx-p1_lx,cf_ly-p1_ly]
+                bouding_box_pos=[p1_lx,p1_ly,p1_rx,p1_ry]
             fm = None
             bm = None
             if not using_mask=='None':
@@ -516,9 +482,24 @@ def optical_flow_mask(args,images,append,front_mask_dict,back_mask_dict,zero_one
                 tmp.append(tmp_file)
                 if not pass_mv:
                     start_time = datetime.datetime.now()
-                    opt = optical_flow_algo(pre,cur,algorithm,DEVICE,model)
+                    if use_bounding_box:
+                        opt = optical_flow_algo(pre_bounding,cur_bounding,algorithm,DEVICE,model)
+                        # p_s = output+'/'+seq+'/'+'dumped_image'+'/img_'+appendzero(int(re.findall(r'\d+', name)[-1]),8)+'.png'
+                        # p_c = output+'/'+seq+'/'+'dumped_image_cur'+'/img_'+appendzero(int(re.findall(r'\d+', name)[-1]),8)+'.png'
+                        # mkdir(output+'/'+seq+'/'+'dumped_image')
+                        # mkdir(output+'/'+seq+'/'+'dumped_image_cur')
+                        # cv2.imwrite(p_s,pre_bounding)
+                        # cv2.imwrite(p_c,cur_bounding)
+                    else:
+                        opt = optical_flow_algo(pre,cur,algorithm,DEVICE,model)
                     cost_time += (datetime.datetime.now()-start_time).total_seconds()
-                    if args.restrain:opt = restrain(opt,mask,threshold,mv_ref)
+                    if use_bounding_box:
+                        tmp_flow = np.zeros_like(cur)[...,:2].astype('float32')
+                        opt[...,0] += mv_offset[0]
+                        opt[...,1] += mv_offset[1]
+                        tmp_flow[bouding_box_pos[1]:bouding_box_pos[3],bouding_box_pos[0]:bouding_box_pos[2]] = opt
+                        opt = tmp_flow
+                    if args.restrain:opt = restrain(opt,pre_mask,threshold,mv_ref)
                     save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=True)
             else:
                 tmp_file = output+'/'+seq+'/'+append+'/mv_'+appendzero(int(re.findall(r'\d+', name)[-1]),8)+'.' +savetype
@@ -526,15 +507,26 @@ def optical_flow_mask(args,images,append,front_mask_dict,back_mask_dict,zero_one
                 tmp.append(tmp_file)
                 if not pass_mv:
                     start_time = datetime.datetime.now()
-                    opt = optical_flow_algo(cur,pre,algorithm,DEVICE,model)
+                    if use_bounding_box:
+                        opt = optical_flow_algo(cur_bounding,pre_bounding,algorithm,DEVICE,model)
+                    else:
+                        opt = optical_flow_algo(cur,pre,algorithm,DEVICE,model)
                     cost_time += (datetime.datetime.now()-start_time).total_seconds()
-                    if args.restrain:opt = restrain(opt,mask,threshold,mv_ref)
+                    if use_bounding_box:
+                        tmp_flow = np.zeros_like(cur)[...,:2].astype('float32')
+                        opt[...,0] += mv_offset[0]
+                        opt[...,1] += mv_offset[1]
+                        tmp_flow[bouding_box_pos[1]:bouding_box_pos[3],bouding_box_pos[0]:bouding_box_pos[2]] = opt
+                        opt = tmp_flow
+                    if args.restrain:opt = restrain(opt,pre_mask,threshold,mv_ref)
                     save_file(tmp_file,opt,fm,bm,refine=refine,savetype=savetype,two_mask=two_mask,using_mask=using_mask,zero_to_one=False)
             pre = cur
+            pre_mask = mask
         if args.time_cost and args.use_tqdm:
             print('cost times:{:.2f}s, speed: {:.2f}'.format(cost_time,len(seq_images)/cost_time))
+        cost_res[seq] = [round(cost_time,2),round(len(seq_images)/cost_time,2)]
         res[seq] = tmp
-    return res
+    return res,cost_res
 
 '''
 description: 光流核心计算
@@ -701,8 +693,8 @@ def optical_flow_algo(pre,cur,algo='farneback',DEVICE='cpu',model=None):
 #524新加 并行
 def get_model(DEVICE,args):
     model = torch.nn.DataParallel(RAFTGMA(args))
-    model.load_state_dict(torch.load(args.model,map_location=DEVICE))
-    #model.load_state_dict(torch.load(args.model,map_location=DEVICE).state_dict())
+    # model.load_state_dict(torch.load(args.model,map_location=DEVICE))
+    model.load_state_dict(torch.load(args.model,map_location=DEVICE).state_dict())
     model = model.module
     model.to(DEVICE)
     model.eval()
@@ -875,3 +867,80 @@ def imwrite(save_path,r,g,b,a,d):
 def gma_demo():
     pass
 
+'''
+description: 根据mask位置生成bounding box信息
+param {*} mask 
+param {*} threshold mask的阈值
+param {*} mv_ref 是否翻转mask
+return {*} bouding box的xy信息
+'''
+def generate_bounding_box(mask,threshold=1,mv_ref=True):
+    if len(mask.shape) == 3:
+        mask = mask[...,0]
+    h,w = mask.shape 
+    if mv_ref:
+        verge = np.where(mask>=threshold)
+    else:
+        verge = np.where(mask<threshold)
+    ly,lx = verge[0].min(),verge[1].min()
+    ry,rx = verge[0].max(),verge[1].max()
+    return lx,ly,rx,ry
+    # bounding_box = mask[ly:ry,lx:rx]
+
+'''
+description: 对bouding box中变长较小的进行padding
+param {*} p1 
+param {*} cf 
+return {*} padding后信息
+'''
+def pad_bounding_box(p1,cf):
+    if type(p1) == str:
+        p1 = imageio.imread(p1)
+    if type(cf) == str:
+        cf = imageio.imread(cf)  
+    p1_lx,p1_ly,p1_rx,p1_ry = generate_bounding_box(p1)
+    cf_lx,cf_ly,cf_rx,cf_ry = generate_bounding_box(cf)
+    p1_dx = p1_rx - p1_lx
+    cf_dx = cf_rx - cf_lx
+    p1_dy = p1_ry - p1_ly
+    cf_dy = cf_ry - cf_ly
+    if p1_dx != cf_dx:
+        diff_x = abs(p1_dx-cf_dx) #差值
+        #扩展较小边的边长
+        if p1_dx < cf_dx:
+            p1_lx -= diff_x
+            if p1_lx <0: #边缘检测
+                p1_lx = 0
+                p1_rx = cf_dx
+        else:
+            cf_lx -= diff_x
+            if cf_lx <0: #边缘检测
+                cf_lx = 0
+                cf_rx = p1_dx
+    
+    if p1_dy != cf_dy:
+        diff_y = abs(p1_dy-cf_dy) #差值
+        #扩展较小边的边长
+        if p1_dy < cf_dy:
+            p1_ly -= diff_y
+            if p1_ly <0: #边缘检测
+                p1_ly = 0
+                p1_ry= cf_dy
+        else:
+            cf_ly -= diff_y
+            if cf_ly <0: #边缘检测
+                cf_ly = 0
+                cf_ry = p1_dy
+    return [p1_lx,p1_ly,p1_rx,p1_ry],[cf_lx,cf_ly,cf_rx,cf_ry]
+
+# mask1 = imageio.imread('/Users/qhong/Desktop/opt_test_datasets/optical_test_pattern/city/mask/mask_000000.exr')
+# mask2 = imageio.imread('/Users/qhong/Desktop/opt_test_datasets/optical_test_pattern/city/mask/mask_000040.exr')
+# threshold=1
+# generate_bounding_box(mask1)
+# generate_bounding_box(mask2)
+# z = pad_bounding_box(mask1,mask2)
+
+# def test(img):
+#     lx,ly,rx,ry = generate_bounding_box(img)
+#     print(lx,ly,rx,ry,rx-lx,ry-ly)
+#     plt.imshow(img[ly:ry,lx:rx,0])

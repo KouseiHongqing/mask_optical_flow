@@ -2,20 +2,18 @@
 Author: Qing Hong
 Date: 2022-05-25 17:35:01
 LastEditors: QingHong
-LastEditTime: 2022-06-06 11:25:53
+LastEditTime: 2022-06-10 10:49:24
 Description: file content
 '''
 import os,sys
 import configparser
+from myutil import *
 # from myutil import mkdir
 cur_path = sys.argv[0][:-sys.argv[0][::-1].find('/')]
 if 'site-package' in cur_path:
     cur_path = ''
 elif cur_path.lower() in ['m','s']:
     cur_path = ''
-def mkdir(path):
-    if  not os.path.exists(path):
-        os.makedirs(path)
 
 assert len(sys.argv)>1 ,'please specify config, usage: python start.py your_config'
 config_file = sys.argv[1]
