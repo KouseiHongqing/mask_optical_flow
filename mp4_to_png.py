@@ -1,8 +1,14 @@
 import cv2
 import os
+
+root = '/home/rg0775/QingHong/dataset/guohua_datasets/2d/guohua_dataset/toQing'
+inpfile = os.listdir(root)
+
+
 #获得视频的格式
+
 videoCapture = cv2.VideoCapture(r'/home/rg0775/QingHong/dataset/gma_datasets/ghchen/video_output/4d/result_00005_to_00009.mp4')
-  
+
 #获得码率及尺寸
 fps = videoCapture.get(cv2.CAP_PROP_FPS)
 size = (int(videoCapture.get(cv2.CAP_PROP_FRAME_WIDTH)), 

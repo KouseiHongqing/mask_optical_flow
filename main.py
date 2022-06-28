@@ -207,7 +207,8 @@ args.use_bounding_box = config.getboolean('opticalflow','use_bounding_box')
 args.threshold = config.getint('opticalflow','threshold') * config.getint('opticalflow','threshold_multiplier')
 ##跳过mv计算 测试代码不要修改 test parameter, donot edit
 args.pass_mv = False
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+if 'gma' in args.algorithm:
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 gpus = args.gpu.rstrip().split(',')
 IMAGEIO_USERDIR = config.get('opticalflow','IMAGEIO_USERDIR') 
 if IMAGEIO_USERDIR.lower()!='none':
@@ -228,7 +229,7 @@ if 'gma' in args.algorithm:
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 args.DEVICE = DEVICE
 ##mutl process
-args.distributed_task = init_distributed_mode(torch.cuda.is_available(),args.mt_backend)
+args.distributed_task = init_distributed_mode(torch.cuda.is_available() and 'gma' in args.algorithm,args.mt_backend)
 args.cur_rank = args.distributed_task[0] + 1
 args.use_tqdm = True if args.cur_rank ==1 else False
 ##预处理文件

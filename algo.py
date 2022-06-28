@@ -42,15 +42,16 @@ def pre_treatment(args,image_dir):
     assert os.path.isdir(root), '%s is not a valid directory' % root
     list_seq_file = delpoint(root,sorted(os.listdir(root)))
     final_res = defaultdict(list)
-    for seq in list_seq_file:
-        list_image = prune_point(sorted(os.listdir(root + '/' + seq + '/'+ image_dir)))
+    for seq_ in list_seq_file:
+        seq = seq_ + '/'+ image_dir if image_dir.lower()!='none' else seq_
+        list_image = prune_point(sorted(os.listdir(root + '/' + seq)))
         if n_limit>0:
-            tmp =  [root + '/' + seq + '/'+ image_dir +'/' + i for i in list_image[:n_limit]]
+            tmp =  [root + '/' + seq +'/' + i for i in list_image[:n_limit]]
         else:
-            tmp =  [root + '/' + seq + '/'+ image_dir +'/' + i for i in list_image]
+            tmp =  [root + '/' + seq +'/' + i for i in list_image]
         cur_rank_start = distributed_task[0]*len(tmp)//distributed_task[1]
         next_rank_start = (1+distributed_task[0])*len(tmp)//distributed_task[1]+1
-        final_res[seq] =tmp[cur_rank_start:next_rank_start]
+        final_res[seq_] =tmp[cur_rank_start:next_rank_start]
     return final_res
 
 '''

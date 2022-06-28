@@ -2,35 +2,35 @@
 ##### main setting
 #algorithms: 'gma','gma_4k','gma_resize'(1/2),'gma_resize_quad'(1/4),'gma_resize_oct'(1/8),
 # 'farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof'
-algorithm = farneback
+algorithm = sparse_to_dense_flow
 
 #gma weight file: gma-chairs.pth,gma-kitti.pth,gma-sintel.pth,gma-things.pth
 gma_weight_file = gma-sintel.pth
 
 # Use specified GPU, example : 0,1,3
-gpu = 0
+gpu = 0,1,2,3
 
 # mul-thread backend (nccl or gloo,nvidia GPU please use nccl)
-mt_backend = nccl
+mt_backend = gloo
 
 #data root
-root = /Users/qhong/Desktop/opt_test_datasets/optical_test_pattern
+root = /home/rg0775/QingHong/dataset/guohua_datasets/2d/guohua_dataset
 # root = /Users/qhong/Documents/data/lrtest
 
 #data output
-output = /Users/qhong/Desktop/myoutput
+output = /home/rg0775/QingHong/dataset/guohua_datasets/2d/guohua_output
 
 #the name of image file
-image_file = video
+image_file = None
 
 # the name of right eye image file
 right_eye_file = image
 
 #enable depth calculator
-cal_depth = 1
+cal_depth = 0
 
 #merge depth and mv file (need calculate depth first)
-merge_depth = 1
+merge_depth = 0
 
 #IMAGEIO_USERDIR (if have)
 IMAGEIO_USERDIR = None

@@ -8,6 +8,7 @@ Description: file content
 import os,sys
 import configparser
 from myutil import *
+import numpy
 # from myutil import mkdir
 cur_path = sys.argv[0][:-sys.argv[0][::-1].find('/')]
 if 'site-package' in cur_path:
