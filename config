@@ -8,20 +8,19 @@ algorithm = GMflow
 gma_weight_file = gma-sintel.pth
 
 # Use specified GPU, example : 0,1,3
-gpu = 0
+gpu = 0,1,2,3
 
 # mul-thread backend (nccl or gloo,nvidia GPU please use nccl)
 mt_backend = gloo
 
 #data root
-root = /Users/qhong/Desktop/opt_test_datasets/optical_test_pattern
+root =
 # root = /Users/qhong/Documents/data/lrtest
 
 #data output
-output = /Users/qhong/Desktop/opt_test_datasets/GMflow_output
-
+output =
 #the name of image file
-image_file = video
+image_file = None
 
 # the name of right eye image file
 right_eye_file = image
