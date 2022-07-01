@@ -113,22 +113,52 @@ from torch import distributed as dist
 # Image.fromarray((q[...,3]*255).astype('uint8'))
 # aa(c)
 
-import argparse
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model', help="restore checkpoint",default='checkpoints/gma-sintel.pth')
-    parser.add_argument('--model_name', help="define model name", default="GMA")
-    parser.add_argument('--path', help="dataset for evaluation")
-    parser.add_argument('--num_heads', default=1, type=int,
-                        help='number of heads in attention and aggregation')
-    parser.add_argument('--position_only', default=False, action='store_true',
-                        help='only use position-wise attention')
-    parser.add_argument('--position_and_content', default=False, action='store_true',
-                        help='use position and content-wise attention')
-    parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
-    args = parser.parse_args()
-    return args
+# import argparse
+# def get_args():
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--model', help="restore checkpoint",default='checkpoints/gma-sintel.pth')
+#     parser.add_argument('--model_name', help="define model name", default="GMA")
+#     parser.add_argument('--path', help="dataset for evaluation")
+#     parser.add_argument('--num_heads', default=1, type=int,
+#                         help='number of heads in attention and aggregation')
+#     parser.add_argument('--position_only', default=False, action='store_true',
+#                         help='only use position-wise attention')
+#     parser.add_argument('--position_and_content', default=False, action='store_true',
+#                         help='use position and content-wise attention')
+#     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
+#     args = parser.parse_args()
+#     return args
 
-args = get_args()
-args.nim = 'qwe'
-print(args.nim)
+# args = get_args()
+# args.nim = 'qwe'
+# print(args.nim)
+import os,sys
+dir_mytest = os.path.dirname(os.path.abspath(__file__))+'/3rd/gmflow'
+sys.path.insert(0, dir_mytest)
+
+from gmflow.gmflow import GMFlow
+import argparse
+import cv2
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+gmflow = GMFlow(feature_channels=128,
+                   num_scales=1,
+                   upsample_factor=8,
+                   num_head=1,
+                   attention_type='swin',
+                   ffn_dim_expansion=4,
+                   num_transformer_layers=6
+                   )
+model = torch.nn.DataParallel(gmflow).module
+model.load_state_dict(torch.load('/Users/qhong/Documents/pythonhome/0601code/mask_optical_flow/pretrained/gmflow_sintel-0c07dcb3.pth',map_location=DEVICE)['model'])
+# model.load_state_dict(torch.load(args.model,map_location=DEVICE).state_dict())
+# model = model.module
+model.to(DEVICE)
+model.eval()
+import numpy as np 
+CF = np.ascontiguousarray(cv2.imread('/Users/qhong/Desktop/inpu/scene01/video/video_000000.png')[...,::-1])
+P1 = np.ascontiguousarray(cv2.imread('/Users/qhong/Desktop/inpu/scene01/video/video_000001.png')[...,::-1])
+CF = torch.tensor(CF).unsqueeze(0).permute(0,3,1,2)
+P1 = torch.tensor(P1).unsqueeze(0).permute(0,3,1,2)
+with torch.no_grad():
+    res = model(CF,P1,[2],[-1],[-1])  
+res = np.transpose(res['flow_preds'][0].detach().cpu().numpy()[0],(1,2,0))

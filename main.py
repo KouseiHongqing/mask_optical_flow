@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-06-20 15:10:19
+LastEditTime: 2022-07-01 17:45:16
 Description: file content
 '''
 import warnings
@@ -23,6 +23,9 @@ from algo import *
 import argparse
 from torch import distributed as dist
 dir_mytest = os.path.dirname(os.path.abspath(__file__))+'/core'
+sys.path.insert(0, dir_mytest)
+
+dir_mytest = os.path.dirname(os.path.abspath(__file__))+'/3rd/gmflow'
 sys.path.insert(0, dir_mytest)
 
 dir_3rd = os.path.dirname(os.path.abspath(__file__))+'/3rd/RobustVideoMatting'
@@ -202,6 +205,8 @@ args.time_cost = config.getboolean('opticalflow','time_cost')
 args.dump_masked_file = config.getboolean('opticalflow','dump_masked_file')
 args.cf_use_full = config.getboolean('opticalflow','cf_use_full')
 args.use_bounding_box = config.getboolean('opticalflow','use_bounding_box')
+args.bounding_with_no_restrain = config.getboolean('opticalflow','bounding_with_no_restrain')
+
 
 #refine threshold
 args.threshold = config.getint('opticalflow','threshold') * config.getint('opticalflow','threshold_multiplier')
@@ -219,12 +224,12 @@ args.cur_rank = 1
 if args.bg:
     assert args.char ,'make sure char_mask enabled'
 
-if 'gma' in args.algorithm:
+if 'gma' in args.algorithm and 'GMflow' in args.algorithm:
     import torch
     from network import RAFTGMA
     from utils import flow_viz
     from utils.utils import InputPadder
-    args.mode = args.gma_weight_file
+    args.model = 'checkpoints/'+args.gma_weight_file
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 args.DEVICE = DEVICE
 ##mutl process

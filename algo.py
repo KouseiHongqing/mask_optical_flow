@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-06-20 14:14:46
+LastEditTime: 2022-07-01 17:54:31
 Description: file content
 '''
 
@@ -10,6 +10,8 @@ import cv2
 import numpy as np
 import os,sys
 dir_mytest = os.path.dirname(os.path.abspath(__file__))+'/core'
+sys.path.insert(0, dir_mytest)
+dir_mytest = os.path.dirname(os.path.abspath(__file__))+'/3rd/gmflow'
 sys.path.insert(0, dir_mytest)
 from tqdm import tqdm
 from collections import defaultdict
@@ -19,6 +21,7 @@ from myutil import *
 from utils.utils import InputPadder
 from utils import flow_viz
 from network import RAFTGMA
+from gmflow.gmflow import GMFlow
 from torch import distributed as dist
 import datetime
 # sudo apt-get install libopenexr-dev
@@ -42,15 +45,16 @@ def pre_treatment(args,image_dir):
     assert os.path.isdir(root), '%s is not a valid directory' % root
     list_seq_file = delpoint(root,sorted(os.listdir(root)))
     final_res = defaultdict(list)
-    for seq in list_seq_file:
-        list_image = prune_point(sorted(os.listdir(root + '/' + seq + '/'+ image_dir)))
+    for seq_ in list_seq_file:
+        seq = seq_ + '/'+ image_dir if image_dir.lower()!='none' else seq_
+        list_image = prune_point(sorted(os.listdir(root + '/' + seq)))
         if n_limit>0:
-            tmp =  [root + '/' + seq + '/'+ image_dir +'/' + i for i in list_image[:n_limit]]
+            tmp =  [root + '/' + seq +'/' + i for i in list_image[:n_limit]]
         else:
-            tmp =  [root + '/' + seq + '/'+ image_dir +'/' + i for i in list_image]
+            tmp =  [root + '/' + seq +'/' + i for i in list_image]
         cur_rank_start = distributed_task[0]*len(tmp)//distributed_task[1]
         next_rank_start = (1+distributed_task[0])*len(tmp)//distributed_task[1]+1
-        final_res[seq] =tmp[cur_rank_start:next_rank_start]
+        final_res[seq_] =tmp[cur_rank_start:next_rank_start]
     return final_res
 
 '''
@@ -245,10 +249,10 @@ def optical_flow(args,images,append,front_mask_dict,back_mask_dict,zero_one,usin
     DEVICE = args.DEVICE
     pass_mv= args.pass_mv
     use_tqdm= args.use_tqdm
-    assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm, 'not supported algorithm: %s' %algorithm
+    assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm or 'GMflow' in algorithm, 'not supported algorithm: %s' %algorithm
     res = defaultdict(list)
     cost_res = defaultdict(list)
-    model = None if 'gma' not in algorithm else get_model(DEVICE=DEVICE,args=args)
+    model = None if 'gma' not in algorithm and 'GMflow' not in algorithm else get_model(DEVICE=DEVICE,args=args,model_name=args.algorithm)
     for seq,seq_images in images.items():
         tmp = []
         total_range = range(len(seq_images)) if not use_tqdm else tqdm(range(len(seq_images)), desc='current sequence:{}'.format(seq))
@@ -337,7 +341,7 @@ def optical_flow_qcom(args,images,append,front_mask_dict,back_mask_dict,zero_one
     assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm, 'not supported algorithm: %s' %algorithm
     res = defaultdict(list)
     cost_res = defaultdict(list)
-    model = None if 'gma' not in algorithm else get_model(DEVICE=DEVICE,args=args)
+    model = None if 'gma' not in algorithm and 'GMflow' not in algorithm else get_model(DEVICE=DEVICE,args=args,model_name=args.algorithm)
     for seq,seq_images in images.items():
         tmp = []
         total_range = range(len(seq_images)) if not use_tqdm else tqdm(range(len(seq_images)), desc='current sequence:{}'.format(seq))
@@ -426,24 +430,25 @@ def optical_flow_mask(args,images,append,front_mask_dict,back_mask_dict,zero_one
     pass_mv= args.pass_mv
     use_tqdm= args.use_tqdm
     use_bounding_box = args.use_bounding_box
+    bounding_with_no_restrain = args.use_bounding_box
     assert algorithm in ['gma','farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof','gma_patch'] or 'gma' in algorithm, 'not supported algorithm: %s' %algorithm
     res = defaultdict(list)
     cost_res = defaultdict(list)
-    model = None if 'gma' not in algorithm else get_model(DEVICE=DEVICE,args=args)
+    model = None if 'gma' not in algorithm and 'GMflow' not in algorithm else get_model(DEVICE=DEVICE,args=args,model_name=args.algorithm)
     for seq,seq_images in images.items():
         tmp = []
         total_range = range(len(seq_images)) if not use_tqdm else tqdm(range(len(seq_images)), desc='current sequence:{}'.format(seq))
         cost_time = 0
         for i in total_range:
             if using_mask == 'front':
-                cur = mask_read(seq_images[i],front_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
+                cur = mask_read(seq_images[i],None,threshold=threshold,reverse=False,mv_ref=mv_ref) if use_bounding_box and bounding_with_no_restrain else mask_read(seq_images[i],front_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
                 mask = front_mask_dict[seq][i]
             elif using_mask == 'bg':
                 if two_mask:
-                    cur = mask_read(seq_images[i],back_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
+                    cur = mask_read(seq_images[i],None,threshold=threshold,reverse=False,mv_ref=mv_ref) if use_bounding_box and bounding_with_no_restrain else mask_read(seq_images[i],back_mask_dict[seq][i],threshold=threshold,reverse=False,mv_ref=mv_ref)
                     mask = back_mask_dict[seq][i]
                 else:
-                    cur = mask_read(seq_images[i],front_mask_dict[seq][i],threshold=threshold,reverse=True,mv_ref=mv_ref)                    
+                    cur = mask_read(seq_images[i],None,threshold=threshold,reverse=True,mv_ref=mv_ref) if use_bounding_box and bounding_with_no_restrain else  mask_read(seq_images[i],front_mask_dict[seq][i],threshold=threshold,reverse=True,mv_ref=mv_ref)
                     mask = front_mask_dict[seq][i]
                    ##bug here
             else:
@@ -676,6 +681,13 @@ def optical_flow_algo(pre,cur,algo='farneback',DEVICE='cpu',model=None):
         # flow = gma_viz(flow_low, flow_up)
         flow = np.stack(flow)
         flow = restore(flow)
+    elif algo =='GMflow':
+        
+        CF = torch.tensor(np.ascontiguousarray(pre[...,::-1])).unsqueeze(0).permute(0,3,1,2)
+        P1 = torch.tensor(np.ascontiguousarray(cur[...,::-1])).unsqueeze(0).permute(0,3,1,2)
+        with torch.no_grad():
+            res = model(CF,P1,[2],[-1],[-1])  
+        flow = np.transpose(res['flow_preds'][0].cpu().detach().numpy()[0],(1,2,0))
 
     return flow
 
@@ -691,13 +703,27 @@ def optical_flow_algo(pre,cur,algo='farneback',DEVICE='cpu',model=None):
 
 
 #524新加 并行
-def get_model(DEVICE,args):
-    model = torch.nn.DataParallel(RAFTGMA(args))
-    # model.load_state_dict(torch.load(args.model,map_location=DEVICE))
-    model.load_state_dict(torch.load(args.model,map_location=DEVICE).state_dict())
-    model = model.module
-    model.to(DEVICE)
-    model.eval()
+def get_model(DEVICE,args,model_name = 'gma'):
+    if 'gma' in model_name:
+        model = torch.nn.DataParallel(RAFTGMA(args))
+        # model.load_state_dict(torch.load(args.model,map_location=DEVICE))
+        model.load_state_dict(torch.load(args.model,map_location=DEVICE).state_dict())
+        model = model.module
+        model.to(DEVICE)
+        model.eval()
+    elif "GMflow" in model_name:
+        gmflow = GMFlow(feature_channels=128,
+                   num_scales=1,
+                   upsample_factor=8,
+                   num_head=1,
+                   attention_type='swin',
+                   ffn_dim_expansion=4,
+                   num_transformer_layers=6
+                   )
+        model = torch.nn.DataParallel(gmflow).module
+        model.load_state_dict(torch.load('pretrained/gmflow_sintel-0c07dcb3.pth',map_location=DEVICE)['model'])
+        model.to(DEVICE)
+        model.eval()
     
     # local_rank = torch.distributed.get_rank()
     # model = model.cuda(local_rank)
@@ -760,7 +786,7 @@ def optical_flow_depth(args,left,right,mask_,append,zero_to_one,reverse=False):
     use_tqdm = args.use_tqdm
 
     res,res_ = defaultdict(list),defaultdict(list)
-    model = None if 'gma' not in algorithm  else get_model(DEVICE=DEVICE,args=args)
+    model = None if 'gma' not in algorithm and 'GMflow' not in algorithm else get_model(DEVICE=DEVICE,args=args,model_name=args.algorithm)
     for seq,seq_images in left.items():
         tmp,tmp_ = [],[]
         l,r = left[seq],right[seq]

@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-06-15 14:17:27
 LastEditors: QingHong
-LastEditTime: 2022-06-15 16:22:10
+LastEditTime: 2022-06-30 14:06:41
 Description: file content
 '''
 import os,sys
@@ -122,7 +122,7 @@ def image_concat(left,right,llmit,rlmit):
     res[:,-w:,:] = right
     return res.astype('uint8')
 
-def demo(lroot,rroot,output,lname,rname,maskname=None,restrain_left=False,restrain_right=False):
+def generatemp4(lroot,rroot,output,lname,rname,maskname=None,restrain_left=False,restrain_right=False):
     scenes_l = sorted(list(filter(lambda x:x[0]!='.',os.listdir(lroot))))
     scenes_r = sorted(list(filter(lambda x:x[0]!='.',os.listdir(rroot))))
     l_dict = {}
@@ -143,16 +143,21 @@ def demo(lroot,rroot,output,lname,rname,maskname=None,restrain_left=False,restra
         if maskname:
             mask = mask_dict[scene]
         make_double_mp4(left,right,save_path,400,800,masks=mask,restrain_left=restrain_left,restrain_right=restrain_right)
-
-
+def demo(img_root,mv_root,output_root,mv_name,image_name='video',mask_file_name='mask',restrain_left=True):
+    print('process recovering')
+    # recover_image(img_root,mv_root,output_root,image_name,mask_file_name,mv_name)
+    print('process mp4 generating')
+    generatemp4(img_root,mv_root,output_root+'/mp4_output',image_name,mv_name+'_restore',mask_file_name,restrain_left=restrain_left)
 root = '/Users/qhong/Desktop/opt_test_datasets/optical_test_pattern'
-gt_file_name = 'mv0'
-mask_file_name = 'mask'
-res_root = '/Users/qhong/Desktop/opt_test_datasets/output'
-res_name = 'pca_flow_Char_mv0'
+# gt_file_name = 'mv0'
+# mask_file_name = 'mask'
+# res_root = '/Users/qhong/Desktop/opt_test_datasets/output'
+# res_name = 'pca_flow_Char_mv0'
 output_root='/Users/qhong/Desktop/opt_test_datasets/output'
 # make_different(root,res_root,output_root,gt_file_name,mask_file_name,res_name)
-res_name_mv1 = 'pca_flow_Char_mv1'
-image_name = 'video'
-# recover_image(root,res_root,output_root,image_name,mask_file_name,res_name)
-demo(root,output_root,'/Users/qhong/Desktop/opt_test_datasets/mp4output','video','pca_flow_Char_mv0_restore',maskname='mask',restrain_left=True)
+# res_name_mv1 = 'pca_flow_Char_mv1'
+# image_name = 'video'
+# recover_image(root,output_root,output_root,'video','mask','deepflow_Char_mv0')
+# generatemp4(root,output_root,'/Users/qhong/Desktop/opt_test_datasets/output_bounding_box_fullimage/mp4output','video','deepflow_Char_mv0_restore',maskname='mask',restrain_left=True)
+
+demo(root,output_root,output_root,'deepflow_Char_mv0','video','mask')

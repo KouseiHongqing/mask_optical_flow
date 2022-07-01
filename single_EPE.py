@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-06-01 02:56:19
 LastEditors: QingHong
-LastEditTime: 2022-06-21 14:13:46
+LastEditTime: 2022-06-30 13:31:27
 Description: file content
 '''
 from EPE import flow_kitti_mask_error
@@ -72,8 +72,8 @@ source_file_root = '/Users/qhong/Desktop/opt_test_datasets/optical_test_pattern'
 # qwe = ['deepflow_left_original_mv0','farneback_left_original_mv0','rlof_left_original_mv0','simpleflow_left_original_mv0','sparse_to_dense_flow_left_original_mv0']
 # output_root = '/Users/qhong/Desktop/opt_test_datasets/output_bounding_box'
 # qwe = ['deepflow_Char_mv0','farneback_Char_mv0','rlof_Char_mv0','simpleflow_Char_mv0','sparse_to_dense_flow_Char_mv0','pca_flow_Char_mv0']
-output_root = '/Users/qhong/Desktop/opt_test_datasets/output'
-qwe = ['deepflow_Char_mv0','farneback_Char_mv0','rlof_Char_mv0','simpleflow_Char_mv0','sparse_to_dense_flow_Char_mv0','pca_flow_Char_mv0']
+output_root = '/Users/qhong/Desktop/opt_test_datasets/output_bounding_box_fullimage'
+qwe = ['deepflow_Char_mv0']
 res = {}
 for q in qwe:
     tmp = multi_epe_cal(source_file_root,output_root,output_name=q)

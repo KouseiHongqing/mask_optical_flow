@@ -1,8 +1,8 @@
 [opticalflow]
 ##### main setting
-#algorithms: 'gma','gma_4k','gma_resize'(1/2),'gma_resize_quad'(1/4),'gma_resize_oct'(1/8),
+#algorithms: 'gma','gma_4k','gma_resize'(1/2),'gma_resize_quad'(1/4),'gma_resize_oct'(1/8),GMflow
 # 'farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof'
-algorithm = farneback
+algorithm = GMflow
 
 #gma weight file: gma-chairs.pth,gma-kitti.pth,gma-sintel.pth,gma-things.pth
 gma_weight_file = gma-sintel.pth
@@ -11,14 +11,14 @@ gma_weight_file = gma-sintel.pth
 gpu = 0
 
 # mul-thread backend (nccl or gloo,nvidia GPU please use nccl)
-mt_backend = nccl
+mt_backend = gloo
 
 #data root
 root = /Users/qhong/Desktop/opt_test_datasets/optical_test_pattern
 # root = /Users/qhong/Documents/data/lrtest
 
 #data output
-output = /Users/qhong/Desktop/myoutput
+output = /Users/qhong/Desktop/opt_test_datasets/GMflow_output
 
 #the name of image file
 image_file = video
@@ -27,12 +27,12 @@ image_file = video
 right_eye_file = image
 
 #enable depth calculator
-cal_depth = 1
+cal_depth = 0
 
 #merge depth and mv file (need calculate depth first)
-merge_depth = 1
+merge_depth = 0
 
-#IMAGEIO_USERDIR (if have)
+#IMAGEIO_USERDIR (if exist)
 IMAGEIO_USERDIR = None
 
 #select depth fusion mode: 
@@ -92,7 +92,16 @@ char = 0
 bg= 0
 
 #if restrain =1 , The result will be limited to the mask range
-restrain = 0
+restrain = 1
+
+#CF_SEARCH_METHOD::CF use full image, default = 0
+cf_use_full = 0
+
+#BOUNDING_BOX_METHOD::use bounding box to cover mask area, only support for traditional optical flow
+use_bounding_box = 1
+
+#BOUNDING_BOX_FULL_METHOD::use bounding box with full image
+bounding_with_no_restrain = 1
 
 #the threshold of mask file (between 0 to 255, lower than this value be pruned), default is 60
 threshold = 60
@@ -100,11 +109,6 @@ threshold = 60
 #Limit results to mask
 enable_limited = 0
 
-#CF use full image, default = 0
-cf_use_full = 0
-
-#use bounding box to cover mask area, only support for traditional optical flow
-use_bounding_box = 0
 
 
 ##### end point error (evaluation)
