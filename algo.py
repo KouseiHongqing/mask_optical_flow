@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-07-01 17:54:31
+LastEditTime: 2022-07-08 13:59:53
 Description: file content
 '''
 
@@ -11,7 +11,7 @@ import numpy as np
 import os,sys
 dir_mytest = os.path.dirname(os.path.abspath(__file__))+'/core'
 sys.path.insert(0, dir_mytest)
-dir_mytest = os.path.dirname(os.path.abspath(__file__))+'/3rd/gmflow'
+dir_mytest = os.path.dirname(os.path.abspath(__file__))+'/gmflow'
 sys.path.insert(0, dir_mytest)
 from tqdm import tqdm
 from collections import defaultdict
@@ -40,6 +40,7 @@ return {*} 生成包含文件目录的dict文件
 '''
 def pre_treatment(args,image_dir):
     root = args.root
+    n_start = args.n_start
     n_limit = args.n_limit
     distributed_task = args.distributed_task
     assert os.path.isdir(root), '%s is not a valid directory' % root
@@ -48,6 +49,8 @@ def pre_treatment(args,image_dir):
     for seq_ in list_seq_file:
         seq = seq_ + '/'+ image_dir if image_dir.lower()!='none' else seq_
         list_image = prune_point(sorted(os.listdir(root + '/' + seq)))
+        if n_start>0:
+            list_image = list_image[n_start:]
         if n_limit>0:
             tmp =  [root + '/' + seq +'/' + i for i in list_image[:n_limit]]
         else:
@@ -66,32 +69,57 @@ return {*} 生成包含文件目录的dict文件
 '''
 def pre_treatment_caldepth(args,image_dir,right_eye_file):
     root = args.root
+    n_start = args.n_start
     n_limit = args.n_limit
+    enable_extra_input_mode = args.enable_extra_input_mode
+    left_root = args.left_root
+    right_root = args.right_root
     distributed_task = args.distributed_task
 
-    assert os.path.isdir(root), '%s is not a valid directory' % root
-    list_seq_file = delpoint(root,sorted(os.listdir(root)))
     le,re = None,None
     le_res,re_res = defaultdict(list),defaultdict(list)
-    for seq in list_seq_file:
-        list_eye_file = delpoint(root+'/'+seq,os.listdir(root+'/'+seq))
-        le_tmp,re_tmp =[],[]
-        for l in list_eye_file:
-            if 'le' in l or 'left' in l.lower():
-                le = l
-            if 're' in l or 'right' in l.lower():
-                re = l
-        assert  le and re ,'left eye and right eye image not exist'
-        le_tmp = prune_point(sorted(os.listdir(root+'/'+seq+'/'+le+'/'+image_dir)))
-        re_tmp = prune_point(sorted(os.listdir(root+'/'+seq+'/'+re+'/'+right_eye_file)))
-        if n_limit>0:
-            tmp1,tmp2 = [root+'/'+seq+'/'+le+'/'+image_dir+'/'+l for l in le_tmp[:n_limit]],[root+'/'+seq+'/'+re+'/'+right_eye_file+'/'+l for l in re_tmp[:n_limit]]
-        else:
-            tmp1,tmp2 = [root+'/'+seq+'/'+le+'/'+image_dir+'/'+l for l in le_tmp],[root+'/'+seq+'/'+re+'/'+right_eye_file+'/'+l for l in re_tmp]
+    if not enable_extra_input_mode:
+        assert os.path.isdir(root), '%s is not a valid directory' % root
+        list_seq_file = delpoint(root,sorted(os.listdir(root)))
+        for seq in list_seq_file:
+            list_eye_file = delpoint(root+'/'+seq,os.listdir(root+'/'+seq))
+            le_tmp,re_tmp =[],[]
+            for l in list_eye_file:
+                if 'le' in l or 'left' in l.lower():
+                    le = l
+                if 're' in l or 'right' in l.lower():
+                    re = l
+            assert  le and re ,'left eye and right eye image not exist'
+            le_tmp = prune_point(sorted(os.listdir(root+'/'+seq+'/'+le+'/'+image_dir)))
+            re_tmp = prune_point(sorted(os.listdir(root+'/'+seq+'/'+re+'/'+right_eye_file)))
+            if n_start>0:
+                le_tmp = le_tmp[n_start:]
+                re_tmp = re_tmp[n_start:]
+            if n_limit>0:
+                tmp1,tmp2 = [root+'/'+seq+'/'+le+'/'+image_dir+'/'+l for l in le_tmp[:n_limit]],[root+'/'+seq+'/'+re+'/'+right_eye_file+'/'+l for l in re_tmp[:n_limit]]
+            else:
+                tmp1,tmp2 = [root+'/'+seq+'/'+le+'/'+image_dir+'/'+l for l in le_tmp],[root+'/'+seq+'/'+re+'/'+right_eye_file+'/'+l for l in re_tmp]
 
-        cur_rank_start = distributed_task[0]*len(tmp1)//distributed_task[1]
-        next_rank_start = (1+distributed_task[0])*len(tmp1)//distributed_task[1]+1
-        le_res[seq],re_res[seq] = tmp1[cur_rank_start:next_rank_start],tmp2[cur_rank_start:next_rank_start]
+            cur_rank_start = distributed_task[0]*len(tmp1)//distributed_task[1]
+            next_rank_start = (1+distributed_task[0])*len(tmp1)//distributed_task[1]+1
+            le_res[seq],re_res[seq] = tmp1[cur_rank_start:next_rank_start],tmp2[cur_rank_start:next_rank_start]
+    else:
+        assert os.path.isdir(left_root) and os.path.isdir(right_root), 'left or right eye is not a valid directory'
+        list_seq_file_l = delpoint(left_root,sorted(os.listdir(left_root)))
+        for seq in list_seq_file_l:
+            img_list = prune_point(sorted(os.listdir(left_root+'/'+seq+'/'+image_dir)))
+            list_eye_file_l=[os.path.join(left_root,seq,image_dir,i) for i in img_list]
+            list_eye_file_r=[os.path.join(right_root,seq,right_eye_file,i) for i in img_list]
+            if n_start>0:
+                list_eye_file_l = list_eye_file_l[n_start:]
+                list_eye_file_r = list_eye_file_r[n_start:]
+            if n_limit>0:
+                list_eye_file_l=list_eye_file_l[:n_limit]
+                list_eye_file_r = list_eye_file_r[:n_limit]
+            cur_rank_start = distributed_task[0]*len(list_eye_file_l)//distributed_task[1]
+            next_rank_start = (1+distributed_task[0])*len(list_eye_file_l)//distributed_task[1]+1
+            le_res[seq],re_res[seq] = list_eye_file_l[cur_rank_start:next_rank_start],list_eye_file_r[cur_rank_start:next_rank_start]
+
         
     return le_res,re_res
 
@@ -555,6 +583,12 @@ def optical_flow_algo(pre,cur,algo='farneback',DEVICE='cpu',model=None):
                                             flags=cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
     elif algo == 'deepflow':
         inst = cv2.optflow.createOptFlow_DeepFlow()
+        # inst.downscaleFactor = 0.9
+        flow = inst.calc(pre, cur, None)
+    
+    elif algo == 'deepflow_cuda':
+        inst = cv2.cuda_Nvidia
+        inst.downscaleFactor = 0.9
         flow = inst.calc(pre, cur, None)
 
     elif algo == 'simpleflow':
@@ -810,7 +844,7 @@ def optical_flow_depth(args,left,right,mask_,append,zero_to_one,reverse=False):
             if mask_:
                 flow *= mask
             name =getname(seq_images[i])
-            tmp_file = output+'/'+seq+'/'+append+'/depth_'+appendzero(int(re.findall(r'\d+', name)[-1])-1,8)+ '.exr' 
+            tmp_file = output+'/'+seq+'/'+append+'/depth_'+appendzero(int(re.findall(r'\d+', name)[-1]),8)+ '.exr' 
             tmp.append(tmp_file)
             save_depth_file(tmp_file,flow,zero_to_one,half=False,depth_range=depth_range,reverse=reverse)
             if export_half:

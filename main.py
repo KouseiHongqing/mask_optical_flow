@@ -2,7 +2,7 @@
 Author: Qing Hong
 Date: 2022-03-07 10:50:59
 LastEditors: QingHong
-LastEditTime: 2022-07-01 17:45:16
+LastEditTime: 2022-07-08 13:43:51
 Description: file content
 '''
 import warnings
@@ -184,6 +184,10 @@ args.cal_depth = config.getboolean('opticalflow','cal_depth')
 args.right_eye_file = config.get('opticalflow','right_eye_file')
 args.right_eye_front_mask_file = config.get('opticalflow','right_eye_front_mask_file')
 args.right_eye_back_mask_file = config.get('opticalflow','right_eye_back_mask_file')
+#extra mode
+args.enable_extra_input_mode = config.getboolean('opticalflow','enable_extra_input_mode')
+args.left_root = config.get('opticalflow','left_root')
+args.right_root = config.get('opticalflow','right_root')
 #exr
 args.savetype = config.get('opticalflow','savetype')
 args.merge_depth= config.getboolean('opticalflow','merge_depth')
@@ -199,6 +203,7 @@ args.matting = config.getboolean('opticalflow','matting')
 args.rm_ori_res = config.getboolean('opticalflow','rm_ori_res')
 args.export_half = config.getboolean('opticalflow','export_half')
 args.n_limit = config.getint('opticalflow','n_limit')
+args.n_start = config.getint('opticalflow','n_start')
 args.gpu = config.get('opticalflow','gpu')
 args.enable_limited = config.getboolean('opticalflow','enable_limited')
 args.time_cost = config.getboolean('opticalflow','time_cost')
@@ -207,6 +212,8 @@ args.cf_use_full = config.getboolean('opticalflow','cf_use_full')
 args.use_bounding_box = config.getboolean('opticalflow','use_bounding_box')
 args.bounding_with_no_restrain = config.getboolean('opticalflow','bounding_with_no_restrain')
 
+#not support:
+assert not (args.enable_extra_input_mode and (args.char or args.bg)),'mask method not support extra input mode!'
 
 #refine threshold
 args.threshold = config.getint('opticalflow','threshold') * config.getint('opticalflow','threshold_multiplier')

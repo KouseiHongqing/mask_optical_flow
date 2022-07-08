@@ -2,34 +2,40 @@
 ##### main setting
 #algorithms: 'gma','gma_4k','gma_resize'(1/2),'gma_resize_quad'(1/4),'gma_resize_oct'(1/8),GMflow
 # 'farneback','deepflow','simpleflow','sparse_to_dense_flow','pca_flow','rlof'
-algorithm = GMflow
+algorithm = farneback
 
 #gma weight file: gma-chairs.pth,gma-kitti.pth,gma-sintel.pth,gma-things.pth
 gma_weight_file = gma-sintel.pth
 
 # Use specified GPU, example : 0,1,3
-gpu = 0,1,2,3
+gpu = 0,1
 
 # mul-thread backend (nccl or gloo,nvidia GPU please use nccl)
 mt_backend = gloo
 
 #data root
-root =
+root = /Users/qhong/Desktop/opt_test_datasets/optical_test_pattern
 # root = /Users/qhong/Documents/data/lrtest
 
 #data output
-output =
+# output = /Users/qhong/Desktop/opt_test_datasets/deep_flow_output_0.9resize
+output = /Users/qhong/Desktop/0708data/output
 #the name of image file
-image_file = None
+image_file = image
 
 # the name of right eye image file
 right_eye_file = image
 
 #enable depth calculator
-cal_depth = 0
+cal_depth = 1
 
 #merge depth and mv file (need calculate depth first)
-merge_depth = 0
+merge_depth = 1
+
+##extra input mode(Left folder first: left(or right)->scene01->image)
+enable_extra_input_mode = 1
+left_root =  /Users/qhong/Desktop/0708data/Left
+right_root = /Users/qhong/Desktop/0708data/Right
 
 #IMAGEIO_USERDIR (if exist)
 IMAGEIO_USERDIR = None
@@ -65,7 +71,9 @@ depth_range = 512
 #Select according to the mask's gray image, if mv_ref = 0 ,The area where the pixel area is zero is the IOU area, default is 1
 mv_ref = 1
 
-#maximum image loaded, 0 = all
+#image start (0 = start from zero)
+n_start = 0
+#image size, 0 = all
 n_limit = 0
 
 
