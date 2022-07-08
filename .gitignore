@@ -1,5 +1,7 @@
-
 .vscode/
 *.zip
 datasets/
 *__paycache__*
+*dump*
+*.DS_Store
+
